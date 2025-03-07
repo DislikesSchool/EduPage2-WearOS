@@ -30,8 +30,6 @@ jobs:
           cache-path: "${{ runner.tool_cache }}/flutter/:channel:-:version:-:arch:"
           pub-cache-key: "flutter-pub:os:-:channel:-:version:-:arch:-:hash:"
           pub-cache-path: "${{ runner.tool_cache }}/flutter/:channel:-:version:-:arch:"
-      - name: 🐦 Setup Shorebird
-        uses: shorebirdtech/setup-shorebird@v1
       - name: Create the Keystore
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
@@ -66,10 +64,12 @@ jobs:
           commitChange: false
       - run: flutter pub get
       - run: flutter gen-l10n
-      - name: 🚀 Shorebird Release
-        run: shorebird release android --artifact apk '--' --dart-define=BVS="Patch ${{ steps.semvers.outputs.v_patch }} ShoreBird"
-        env:
-          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+      - name: Build APK
+        run: flutter build apk --release --dart-define=BVS="Patch ${{ steps.semvers.outputs.v_patch }} WearOS"
+      - name: Git restore android/app/version.properties
+        run: git restore android/app/version.properties
+      - name: Build App Bundle
+        run: flutter build appbundle --release --dart-define=BVS="Patch ${{ steps.semvers.outputs.v_patch }} WearOS"
       - name: Upload to Google Play
         uses: r0adkll/upload-google-play@v1
         with:
@@ -85,7 +85,7 @@ jobs:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           automatic_release_tag: "${{ steps.semvers.outputs.v_patch }}"
           prerelease: false
-          title: "EduPage2 ${{ steps.semvers.outputs.v_patch }}"
+          title: "EduPage2 ${{ steps.semvers.outputs.v_patch }} WearOS"
           files: |
             EduPage2-${{ steps.semvers.outputs.v_patch }}.apk
       - name: Commit changes
