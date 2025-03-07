@@ -128,7 +128,7 @@ class EP2Data {
 
     dbi = (await DBI.loadFromCache()) ?? DBI(subjects: {});
 
-    bool quickstart = sharedPreferences.getBool("quickstart") ?? false;
+    bool quickstart = sharedPreferences.getBool("quickstart") ?? true;
 
     String? endpoint = sharedPreferences.getString("customEndpoint");
     if (endpoint != null && endpoint != "") {

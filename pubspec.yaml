@@ -24,6 +24,7 @@ dependencies:
   flutter_displaymode: ^0.6.0
   toastification: ^2.3.0
   qr_flutter: ^4.1.0
+  rotary_scrollbar: ^1.1.0
 dev_dependencies:
   integration_test:
     sdk: flutter
