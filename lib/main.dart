@@ -1,14 +1,9 @@
 import 'dart:async';
 
-import 'package:app_links/app_links.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:eduapge2/api.dart';
-import 'package:eduapge2/homework.dart';
-import 'package:eduapge2/icanteen.dart';
+import 'package:eduapge2/home.dart';
 import 'package:eduapge2/load.dart';
-import 'package:eduapge2/messages.dart';
-import 'package:eduapge2/qrlogin.dart';
-import 'package:eduapge2/timetable.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
@@ -19,7 +14,6 @@ import 'package:flutter_session_manager/flutter_session_manager.dart';
 import 'package:eduapge2/l10n/app_localizations.dart';
 import 'package:restart_app/restart_app.dart';
 import 'package:shorebird_code_push/shorebird_code_push.dart';
-import 'home.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -112,6 +106,9 @@ class MyApp extends StatelessWidget {
           ),
           themeMode: ThemeMode.dark,
           home: const PageBase(),
+          routes: <String, WidgetBuilder>{
+            '/home': (BuildContext context) => Home(context: context),
+          },
         ),
       );
     });
@@ -126,11 +123,7 @@ class PageBase extends StatefulWidget {
 }
 
 class PageBaseState extends BaseState<PageBase> {
-  int _selectedIndex = 0;
   String baseUrl = FirebaseRemoteConfig.instance.getString("testUrl");
-
-  late AppLinks _appLinks;
-  StreamSubscription<Uri>? _linkSubscription;
 
   bool loaded = false;
 
@@ -150,28 +143,11 @@ class PageBaseState extends BaseState<PageBase> {
     setOptimalDisplayMode();
     if (!_isCheckingForUpdate) _checkForUpdate(); // ik that it's not necessary
     super.initState();
-    initDeepLinks();
   }
 
   @override
   void dispose() {
-    _linkSubscription?.cancel();
     super.dispose();
-  }
-
-  Future<void> initDeepLinks() async {
-    _appLinks = AppLinks();
-
-    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
-      if (uri.path.startsWith('/l/')) {
-        final code = uri.pathSegments[1];
-        navigatorKey.currentState?.push(MaterialPageRoute(
-          builder: (context) => QRLoginPage(
-            code: code,
-          ),
-        ));
-      }
-    });
   }
 
   Future<void> setOptimalDisplayMode() async {
@@ -189,12 +165,6 @@ class PageBaseState extends BaseState<PageBase> {
         sameResolution.isNotEmpty ? sameResolution.first : active;
 
     await FlutterDisplayMode.setPreferredMode(mostOptimalMode);
-  }
-
-  void _onDestinationSelected(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
   }
 
   Future<void> _checkForUpdate() async {
@@ -267,109 +237,11 @@ class PageBaseState extends BaseState<PageBase> {
 
   @override
   Widget build(BuildContext context) {
-    return !loaded
-        ? Scaffold(
-            appBar: AppBar(
-              toolbarHeight: 0,
-            ),
-            body: LoadingScreen(
-              sessionManager: sessionManager,
-              loadedCallback: () {
-                getMsgs();
-                setState(() {
-                  loaded = true;
-                });
-              },
-            ),
-          )
-        : Scaffold(
-            appBar: AppBar(
-              toolbarHeight: 0,
-            ),
-            body: IndexedStack(
-              index: _selectedIndex,
-              children: <Widget>[
-                HomePage(
-                  sessionManager: sessionManager,
-                  reLogin: () {
-                    setState(() {
-                      loaded = false;
-                    });
-                  },
-                  onDestinationSelected: _onDestinationSelected,
-                ),
-                TimeTablePage(
-                  sessionManager: sessionManager,
-                ),
-                if (iCanteenEnabled)
-                  ICanteenPage(
-                    sessionManager: sessionManager,
-                  ),
-                MessagesPage(
-                  sessionManager: sessionManager,
-                ),
-                HomeworkPage(
-                  sessionManager: sessionManager,
-                )
-              ],
-            ),
-            bottomNavigationBar: NavigationBar(
-              destinations: <NavigationDestination>[
-                NavigationDestination(
-                  icon: const Icon(Icons.home),
-                  label: AppLocalizations.of(context)!.mainHome,
-                  selectedIcon: const Icon(Icons.home_outlined),
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.calendar_month),
-                  label: AppLocalizations.of(context)!.mainTimetable,
-                  selectedIcon: const Icon(Icons.calendar_month_outlined),
-                ),
-                if (iCanteenEnabled)
-                  NavigationDestination(
-                    icon: const Icon(Icons.lunch_dining_rounded),
-                    label: AppLocalizations.of(context)!.mainICanteen,
-                    selectedIcon: const Icon(Icons.lunch_dining_outlined),
-                  ),
-                /*
-                NavigationDestination(
-                  icon: Badge(
-                    label: Text(apidataMsg
-                        .where((msg) => msg["isSeen"] == false)
-                        .toList()
-                        .length
-                        .toString()),
-                    child: const Icon(Icons.mail),
-                  ),
-                  label: AppLocalizations.of(context)!.mainMessages,
-                  selectedIcon: Badge(
-                    label: Text(apidataMsg
-                        .where((msg) => msg["isSeen"] == false)
-                        .toList()
-                        .length
-                        .toString()),
-                    child: const Icon(Icons.mail_outline),
-                  ),
-                ),
-                */
-                NavigationDestination(
-                  icon: const Icon(Icons.mail),
-                  label: AppLocalizations.of(context)!.mainMessages,
-                  selectedIcon: const Icon(Icons.mail_outline),
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.home_work),
-                  label: AppLocalizations.of(context)!.mainHomework,
-                  selectedIcon: const Icon(Icons.home_work_outlined),
-                ),
-              ],
-              selectedIndex: _selectedIndex,
-              onDestinationSelected: (dest) => {
-                setState(() {
-                  _selectedIndex = dest;
-                })
-              },
-            ),
-          );
+    return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 0,
+      ),
+      body: Load(context: context),
+    );
   }
 }

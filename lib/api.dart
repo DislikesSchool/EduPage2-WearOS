@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:eduapge2/l10n/app_localizations.dart';
-import 'package:eduapge2/timetable.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -322,6 +321,94 @@ class PollOptions {
         'options': options.map((option) => option.toJson()).toList(),
         'multiple': multiple,
       };
+}
+
+TimeTableData processTimeTable(TimeTableData tt) {
+  List<TimeTableClass> classes = tt.classes;
+  List<TimeTablePeriod> periods = tt.periods;
+
+  // Go through all classes, and assign them a startPeriod and endPeriod both equal to the their period
+  for (int i = 0; i < classes.length; i++) {
+    TimeTableClass currentClass = classes[i];
+    TimeTablePeriod currentPeriod =
+        periods.firstWhere((period) => period.id == currentClass.period,
+            orElse: () => TimeTablePeriod.fromJson({
+                  "id": currentClass.period,
+                  "starttime": currentClass.startTime,
+                  "endtime": currentClass.endTime,
+                  "name": currentClass.period,
+                  "short": currentClass.period,
+                }));
+    currentClass.startPeriod = currentPeriod;
+    currentClass.endPeriod = currentPeriod;
+  }
+
+  // Match class end times to period end times
+  for (int i = 0; i < classes.length; i++) {
+    TimeTableClass currentClass = classes[i];
+    TimeTablePeriod currentPeriod =
+        periods.firstWhere((period) => period.id == currentClass.endPeriod!.id,
+            orElse: () => TimeTablePeriod.fromJson({
+                  "id": currentClass.endPeriod!.id,
+                  "starttime": currentClass.endTime,
+                  "endtime": currentClass.endTime,
+                  "name": currentClass.endPeriod!.id,
+                  "short": currentClass.endPeriod!.id,
+                }));
+    if (currentClass.endTime != currentPeriod.endTime) {
+      int nextPeriodIndex = periods
+          .indexWhere((period) => period.endTime == currentClass.endTime);
+      if (nextPeriodIndex != -1) {
+        TimeTablePeriod nextPeriod = periods[nextPeriodIndex];
+        currentClass.endPeriod = nextPeriod;
+      }
+    }
+  }
+
+  classes.sort((a, b) {
+    int? sp = int.tryParse(a.startPeriod!.id);
+    int? ep = int.tryParse(b.endPeriod!.id);
+    if (sp == null || ep == null) return 0;
+    return sp.compareTo(ep);
+  });
+  periods.sort((a, b) => a.startTime.compareTo(b.startTime));
+
+  List<TimeTableClass> newClasses = [];
+
+  // Add empty classes in between existing classes
+  for (int i = 0; i < classes.length - 1; i++) {
+    TimeTableClass currentClass = classes[i];
+    TimeTableClass nextClass = classes[i + 1];
+    int currentPeriodIndex =
+        periods.indexWhere((period) => period.id == currentClass.endPeriod!.id);
+    int nextPeriodIndex =
+        periods.indexWhere((period) => period.id == nextClass.startPeriod!.id);
+    bool hasClassAfter =
+        nextPeriodIndex != -1 && nextPeriodIndex - currentPeriodIndex > 1;
+    if (hasClassAfter) {
+      for (int j = currentPeriodIndex + 1; j < nextPeriodIndex; j++) {
+        TimeTablePeriod emptyPeriod = periods[j];
+        TimeTableClass emptyClass = TimeTableClass(
+          period: emptyPeriod.id,
+          startTime: emptyPeriod.startTime,
+          endTime: emptyPeriod.endTime,
+        );
+        emptyClass.startPeriod = emptyPeriod;
+        emptyClass.endPeriod = emptyPeriod;
+        newClasses.add(emptyClass);
+      }
+    }
+  }
+
+  classes.addAll(newClasses);
+  classes.sort((a, b) {
+    int? sp = int.tryParse(a.startPeriod!.id);
+    int? ep = int.tryParse(b.endPeriod!.id);
+    if (sp == null || ep == null) return 0;
+    return sp.compareTo(ep);
+  });
+
+  return TimeTableData(tt.date, classes, periods);
 }
 
 class User {
